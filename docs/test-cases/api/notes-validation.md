@@ -47,5 +47,6 @@ violations → **`422 application/problem+json`**:
 | API-VAL-14 | P2 | Security | Script/HTML accepted, escaped on render | Authed | POST `{title:"<script>alert(1)</script>", content:"x"}` | `201`; stored verbatim (escaping is the UI's job — cross-ref UI-NOTE-09) | notes-validation.spec |
 | API-VAL-15 | P2 | Negative | Whitespace-only content asymmetry | Authed | POST `{title:"ok", content:"   "}` | **`201`** — `content` is **not trimmed** (unlike `title`, which would `422` when whitespace-only). Documents the inconsistency (**GAP-4**) | notes-validation.spec |
 
-**Built-in schema check:** the `422` envelope in these cases is *additionally* validated against the
-`ConstraintViolation`/`Error` schema inline (API-CONTRACT-05) — see [contract-schema.md](contract-schema.md).
+**Schema check:** the `422` envelope shape is *additionally* validated against the
+`ConstraintViolation`/`Error` schema in the dedicated contract spec (API-CONTRACT-05) — see
+[contract-schema.md](contract-schema.md) and `tests/api/contract.spec.ts`.

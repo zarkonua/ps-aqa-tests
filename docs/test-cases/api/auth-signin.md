@@ -18,7 +18,7 @@ unknown user `401 Invalid credentials.` (same message → no enumeration) · **u
 | API-SIGNIN-05 | P1 | Negative | Missing credentials | — | POST `{}` / only email / only password | `401` (or `400`), no token | auth-signin.spec |
 | API-SIGNIN-06 | P2 | Positive | Token is usable | Signed in | Call `/api/auth/me` with returned token | `200 {id, email}` | auth-signin.spec |
 | API-SIGNIN-07 | P2 | Positive | Email case-insensitive | Verified `user@example.com` | POST `{email:"USER@example.com", password}` | `200 {token}` | auth-signin.spec |
-| API-SIGNIN-08 | P2 | Contract | 🔴 gate — exact shape | Verified user | Valid sign in | Body is **exactly** `{token}` (no `message`, unlike confirm). Broken mode's `JwtAuthenticationSuccessSubscriber` emits `{jwt,message}`/`{access_token,status}` — caught here | auth-signin.spec |
+| API-SIGNIN-08 | P2 | Contract | Exact shape | Verified user | Valid sign in | Body is **exactly** `{token}` (no `message`, unlike confirm). Broken mode's `JwtAuthenticationSuccessSubscriber` emits `{jwt,message}`/`{access_token,status}` — caught here | auth-signin.spec |
 | API-SIGNIN-09 | P3 | Negative | Wrong content type / form body | Verified user | POST as `application/x-www-form-urlencoded` | Rejected (`400`/`401`), no token | auth-signin.spec |
 | API-SIGNIN-10 | P1 | Security | 🐞 No lockout / rate-limiting | Verified user | Fire ~20 wrong-password attempts, then a correct one | **Defect (verified):** all `401` (zero `429`, no delay), and the correct password logs in **immediately** after — unlimited brute-force. *Expected:* per-account/IP throttle or lockout after N failures | auth-signin.spec `@security` |
 

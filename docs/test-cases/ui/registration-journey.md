@@ -26,7 +26,7 @@ valid, status codes, email content) is owned by the API layer.
 
 | Was (UI) | Why it's not UI | Owning API case(s) |
 |---|---|---|
-| Confirmation link points to app host | Email content is HTTP, no browser needed | **API-SIGNUP-02** (🔴 gate) |
+| Confirmation link points to app host | Email content is HTTP, no browser needed | **API-SIGNUP-02** |
 | Sign-in wrong password / unknown user / unverified | Status + message are API contract | API-SIGNIN-02/03/04 |
 | Sign-up invalid email / short password / duplicate | Validation is API contract | API-SIGNUP-04/08/09 |
 | Confirmation with wrong code | Business logic + status | API-CONFIRM-03 |

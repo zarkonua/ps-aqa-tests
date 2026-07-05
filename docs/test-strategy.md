@@ -1,8 +1,8 @@
 # Test Strategy — PS AQA Tech Task (Symfony Notes App)
 
-> **Status:** A1 (smoke, 25 tests) and A2 (regression, 149 tests total) are built and green — see
-> [`a1-automation-report.md`](a1-automation-report.md) / [`a2-automation-report.md`](a2-automation-report.md)
-> for evidence. A3 (extended: `@db @infra @concurrency @scale @security`) is designed but not yet built.
+> **Status:** A1 (smoke) and A2 (regression) are built and green. A3 (extended) is partially built:
+> the `@db` gray-box seam is implemented and runs via `npm run test:db` (opt-in `db` project);
+> `@infra @concurrency @scale @security` are designed but not yet built.
 > Target under test: deployed at `http://localhost:4444`.
 
 ---
@@ -38,7 +38,7 @@ Notes are **owner-scoped** via `NoteOwnerExtension` — a user must never see or
 
 ### Business rules extracted from source
 
-- Password: min 8, max 255 **bytes** (see [`requirements-gap-analysis.md`](requirements-gap-analysis.md) G4).
+- Password: min 8, max 255 **bytes** (length counted in bytes, not characters).
 - Email: RFC-valid, max 190 chars, lowercased/trimmed.
 - Confirmation code: exactly 6 digits, single-use, expires in 10 minutes.
 - Note title: 1–255 chars, `NotBlank`, trimmed.
@@ -61,7 +61,7 @@ deployment run `healthy`. In **`broken` mode** the code deliberately regresses:
 
 **This is the real point of the task.** A weak suite (only "status is 2xx", ignores response schema,
 never re-reads content) passes *both* modes and proves nothing. A strong suite passes green on
-`healthy` and **turns red on `broken`**. Every assertion below is designed to be that gate:
+`healthy` and **turns red on `broken`**. Every assertion below is designed to prove exactly that:
 exact status codes, strict schema/shape checks, content round-trip verification, and email-link validation.
 
 ---
@@ -78,15 +78,14 @@ deployed target. The app's own PHPUnit suite is left untouched; this is the exte
 
 ```
 tests/
-  api/          # *.spec.ts (A1 smoke) + *.regression.spec.ts (A2)
-  e2e/          # same split, browser specs
+  api/          # *.spec.ts — A1 (@smoke) + A2 (@regression) tagged blocks in the same file
+  e2e/          # same convention, browser specs
   clients/      # base-api-client, auth-api-client, notes-api-client, mailhog-client
   pages/        # base, auth, notes, profile Page Objects
   fixtures/     # api.fixture / e2e.fixture — auth seeding, POM wiring
   models/       # request/response TypeScript contracts
   utils/        # test-data (Faker), schema (live OpenAPI validation), register
 playwright.config.ts   # projects: api, e2e, smoke, regression
-.github/workflows/ci.yml
 ```
 
 ### Frontend selectors available (from `public/assets/app.js`)
@@ -102,8 +101,8 @@ The SPA exposes stable element IDs, so POM is clean (no brittle CSS):
 
 ## 5. Coverage plan
 
-The full case-by-case breakdown lives in [`test-cases/`](test-cases/README.md) and
-[`coverage-matrix.md`](coverage-matrix.md); this section summarizes the design.
+The full case-by-case breakdown lives in [`test-cases/`](test-cases/README.md); this section
+summarizes the design.
 
 ### 5.1 API tests — assert status **and** body shape
 
@@ -137,14 +136,13 @@ Two tiers:
 1. **Black-box (default):** `faker`-generated, unique per run (timestamp/seed suffix on emails);
    fixtures build state through the API (signup → confirm → notes). This is how the happy paths and
    the system-under-test are exercised.
-2. **DB seed (gray-box, `@db`, not yet built):** direct inserts via the DB seam for data that is a
-   *precondition*, not the behavior under test — verified users (bcrypt hash + `is_verified`), large or
-   **time-ordered** note sets, and expired/used codes. Fast (ms) and deterministic; skipped when
-   `DB_HOST` is unset.
+2. **DB seed (gray-box, `@db`, built — opt-in `db` project):** direct inserts via the DB seam for data
+   that is a *precondition*, not the behavior under test — verified users (bcrypt hash + `is_verified`),
+   large or **time-ordered** note sets, and expired/used codes. Fast (ms) and deterministic; runs only
+   via `npm run test:db` (excluded from the default `api` project via `grepInvert`).
 
 **Guiding rule:** seed the *arrange* data, never the thing being asserted — signup/confirm/sign-in
-and note-creation always run through the real API/UI. Details, schema, and builders in
-[test-cases/api/advanced-gray-box.md](test-cases/api/advanced-gray-box.md).
+and note-creation always run through the real API/UI.
 
 ### 5.5 Contract & schema validation (OpenAPI)
 
@@ -160,7 +158,7 @@ replacing) the explicit status/exact-shape assertions.
 - Implemented dependency-free (`tests/utils/schema.ts`): required keys / `additionalProperties` /
   `uuid`+`date-time` formats validated directly, without pulling in `ajv`.
 
-**⚠️ Spec drift found (real findings — see [`requirements-gap-analysis.md`](requirements-gap-analysis.md) G7):**
+**⚠️ Spec drift found (real findings, verified against the app source):**
 
 | Endpoint | Spec documents | Actual (verified) |
 |---|---|---|
@@ -170,20 +168,20 @@ replacing) the explicit status/exact-shape assertions.
 | collections (`ld+json`) | schema advertised | `application/ld+json` actually **`500`s**; only `application/json` works |
 
 A few **spec-drift assertions** (`API-DRIFT-*`, run as `xfail`) turn these into reported defects —
-legitimate QA output beyond pass/fail. See [test-cases/api/contract-schema.md](test-cases/api/contract-schema.md).
+legitimate QA output beyond pass/fail.
 
 ---
 
 ## 6. CI & evidence
 
-`.github/workflows/ci.yml` — on push/PR:
+A GitHub Actions workflow — on push/PR:
 - brings up (or points at) the deployed app,
 - runs the Playwright suite,
 - uploads the **Playwright HTML report** as an artifact → satisfies the task's "evidence tests run" ask.
 
 ---
 
-## 7. The broken-mode gate (validation of the suite itself)
+## 7. Broken-mode validation (validation of the suite itself)
 
 After the suite is green against `healthy`, stand up a **throwaway second instance** with
 `APP_MODE=broken` (separate port / temporary container — the running healthy instance is left alone)
@@ -207,23 +205,22 @@ Summary:
 |---|---|---|---|
 | **A1** | Smoke — every push | ≤ 90 s | ✅ built, 25 tests green |
 | **A2** | Regression — every PR + nightly | ~3–5 min | ✅ built, 124 tests green (149 total incl. A1) |
-| **A3** | Extended — nightly/on-demand (`@db @infra @concurrency @scale @security`) | ~5–10 min | ⬜ designed, not built |
+| **A3** | Extended — nightly/on-demand (`@db @infra @concurrency @scale @security`) | ~5–10 min | 🟡 partial — `@db` seam built (`npm run test:db`); rest designed, not built |
 
 ---
 
 ## 9. Requirements checklist (condensed)
 
-The suite must satisfy these, grouped by concern (each verifiable; ✅ = currently true, per the
-automation reports):
+The suite must satisfy these, grouped by concern (each verifiable; ✅ = currently true):
 
 | Area | Key requirements |
 |---|---|
-| **Scope** | Black-box over HTTP ✅ · API-first, UI only for browser-specific behavior ✅ · all 8 product features covered (§ coverage-matrix.md) |
+| **Scope** | Black-box over HTTP ✅ · API-first, UI only for browser-specific behavior ✅ · all 8 product features covered |
 | **Architecture** | Playwright+TS, `api`/`e2e` projects ✅ · typed clients + POM ✅ · fixtures for cross-cutting setup ✅ · typed models, status+body asserted ✅ · no hardcoded config ✅ · `tsc --noEmit` clean ✅ |
 | **Environment** | Env-driven targets (`BASE_URL`, `MAILHOG_URL`, DB seam vars) ✅ · runs against any env by config only ✅ · doesn't assume sole-client state ✅ |
-| **Test data** | Unique per test (Faker + timestamp) ✅ · seeded at the right level (API by default, DB seam for arrange-only data — seam not yet built) |
-| **Contract/schema** | Schemas fetched live from `/api/doc.json`, no hardcoding ✅ · looked up by endpoint ✅ · inline assertion, not duplicate tests ✅ · strict mode available ✅ · status codes asserted explicitly, not derived from spec ✅ |
-| **Broken-mode gate** | 🔴 cases assert exact status/shape/content/link ✅ · gate not yet re-run against a live `broken` instance ⬜ |
+| **Test data** | Unique per test (Faker + timestamp) ✅ · seeded at the right level (API by default, DB seam for arrange-only data) ✅ |
+| **Contract/schema** | Schemas fetched live from `/api/doc.json`, no hardcoding ✅ · looked up by endpoint ✅ · dedicated spec (`contract.spec.ts`), no duplicate CRUD tests ✅ · strict mode available ✅ · status codes asserted explicitly, not derived from spec ✅ |
+| **Broken-mode detection** | Exact-status/exact-shape cases assert exact status/shape/content/link ✅ · not yet re-run against a live `broken` instance ⬜ |
 | **Coverage** | Every catalog case automated or marked manual/exploratory (A1+A2 done; A3 designed) · negatives ≥ happy paths ✅ |
 | **Execution/CI** | Isolated & parallel-safe ✅ · tag-selectable suites ✅ · smoke ≤ 90s on every push ✅ · CI stands up app + publishes report ✅ · no hard waits ✅ |
 | **Reporting** | HTML report + CI artifact ✅ · trace/screenshot on failure (recommended, verify config) |
@@ -233,13 +230,13 @@ automation reports):
 
 The automation is "done" for a release when **all** hold:
 
-1. All **A1** and **A2** tests pass against a `healthy` instance. ✅ (149/149, see automation reports)
+1. All **A1** and **A2** tests pass against a `healthy` instance. ✅
 2. `npm run typecheck` passes; no `test.only`, no committed hard waits. ✅
-3. The **broken-mode gate** subset is verified to **fail** against an `APP_MODE=broken` instance. ⬜ **not yet run**
+3. The **broken-mode (exact-status/exact-shape) subset** is verified to **fail** against an `APP_MODE=broken` instance. ⬜ **not yet run**
 4. **CI is green**, and the HTML report is published as an artifact. ⬜ **verify on first push**
 5. Every catalog case is automated or explicitly marked manual/exploratory. ✅ (A1+A2); A3 designed, not built
-6. Confirmed defects are captured as annotated regression tests and listed for the team. ✅ (see A2 report + `requirements-gap-analysis.md`)
-7. `@db`/`@infra`/`@slow` tests are correctly tagged and skip cleanly when their preconditions are absent. ⬜ **A3 not yet built**
+6. Confirmed defects are captured as annotated regression tests and listed for the team. ✅
+7. `@db`/`@infra`/`@slow` tests are correctly tagged and skip cleanly when their preconditions are absent. 🟡 **partial** — `@db` is tagged and isolated in its own opt-in `db` project (never runs by default); `@infra`/`@slow` not yet built
 
 ---
 
@@ -250,8 +247,8 @@ The automation is "done" for a release when **all** hold:
 3. ✅ API unhappy paths, authz, search/pagination, validation — A2 regression, green.
 4. ✅ E2E: full signup→confirm→signin journey + notes lifecycle + profile + auth guard (A1 core + A2 breadth).
 5. ✅ CI workflow + README with setup/run instructions and report evidence.
-6. ⬜ Validate the gate: run against a local `APP_MODE=broken` instance, confirm red.
-7. ⬜ A3 (extended): `@db` gray-box seam, `@infra` mailer-down, `@concurrency` races, `@security` loops.
+6. ⬜ Validate broken-mode detection: run against a local `APP_MODE=broken` instance, confirm red.
+7. 🟡 A3 (extended): `@db` gray-box seam ✅ built (`npm run test:db`); `@infra` mailer-down, `@concurrency` races, `@security` loops ⬜ remaining.
 
 ---
 
@@ -274,5 +271,4 @@ The automation is "done" for a release when **all** hold:
 - Confirmation codes expire in 10 min and are single-use — tests must fetch a fresh code per run.
 - Keep API and E2E suites separate (per skill guidance); share only the MailHog client and models.
 - Real defects found via automation (`API-NOTE-10` — `created_at` reset; several security gaps) are
-  pinned as characterization tests in A2 — see [`requirements-gap-analysis.md`](requirements-gap-analysis.md)
-  and the automation reports for the full list and recommended fixes.
+  pinned as characterization tests in A2.

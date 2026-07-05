@@ -14,11 +14,15 @@ needs a 10-minute wait or a flaky race is not "automate-first".
 
 Full scripted suite (A1 + A2 + A3): **~10–15 min**.
 
-**Tags are real Playwright annotations**, not filenames or title text: every `describe` block carries
-`{ tag: '@smoke' }` (A1) or `{ tag: '@regression' }` (A2), so `npm run test:smoke` /
-`npm run test:regression` (or `npx playwright test --grep @smoke`) filter for real. A3's
-`@db @infra @concurrency @slow @scale @security` tags are reserved above but not yet applied to any spec —
-add them the same way once A3 cases land.
+**Tags are real Playwright annotations**, not filenames or title text: every `test()` carries
+`{ tag: '@smoke' }` (A1) or `{ tag: '@regression' }` (A2) — tier is metadata on the case, not the
+`describe` block, so one `describe` per file can mix tiers without duplicating the block (avoids two
+identically-named groups in the report). `npm run test:smoke` /
+`npm run test:regression` (or `npx playwright test --grep @smoke`) filter for real. Of A3's reserved
+`@db @infra @concurrency @slow @scale @security` tags, **`@db @gray-box` are now applied** — the DB seam
+(`advanced-gray-box.md`) is implemented and runs via `npm run test:db` (`db` project, `grep: /@db/`;
+excluded from `api` via `grepInvert`). `@infra @concurrency @slow @scale @security` remain reserved but
+not yet applied — add them the same way once those A3 cases land.
 
 > **How to read "Why":** each reason states the deciding factor(s) — *value* (release-gating vs
 > secondary), *speed/determinism* (fast & repeatable vs flaky/slow), and *feasibility* (black-box vs
@@ -28,8 +32,8 @@ add them the same way once A3 cases land.
 | ID | Tier | Why this tier |
 |---|---|---|
 | API-SIGNUP-01 | A1 | Core registration happy path; fast & deterministic → must gate every push |
-| API-SIGNUP-02 | A1 | Confirms email + link delivery (broken-mode 🔴 gate); MailHog read is deterministic |
-| API-SIGNUP-13 | A1 | Exact status/shape 🔴 gate — the primary broken-mode catcher for signup |
+| API-SIGNUP-02 | A1 | Confirms email + link delivery (broken-mode gate); MailHog read is deterministic |
+| API-SIGNUP-13 | A1 | Exact status/shape — the primary broken-mode catcher for signup |
 | API-SIGNUP-03 | A2 | Email normalization correctness; valuable but not release-gating |
 | API-SIGNUP-04 | A2 | Duplicate-verified negative; needs a confirmed-user setup → regression, not smoke |
 | API-SIGNUP-05 | A2 | Re-signup-unverified secondary flow |
@@ -38,8 +42,10 @@ add them the same way once A3 cases land.
 | API-SIGNUP-08 | A2 | Invalid-email equivalence set; data-driven breadth |
 | API-SIGNUP-09 | A2 | Password below-min boundary |
 | API-SIGNUP-10 | A2 | Password at-min boundary |
-| API-SIGNUP-11 | A2 | Password max boundary (255/256) |
-| API-SIGNUP-12 | A2 | Email length boundary (190/191) |
+| API-SIGNUP-11a | A2 | Password at maximum (255) accepted |
+| API-SIGNUP-11b | A2 | Password over maximum (256) rejected |
+| API-SIGNUP-12a | A2 | Email at maximum (190) accepted |
+| API-SIGNUP-12b | A2 | Email over maximum (191) rejected |
 | API-SIGNUP-14 | A2 | Empty-body negative |
 | API-SIGNUP-15 | A2 | Injection safety; deterministic security check |
 | API-SIGNUP-16 | A2 | Malformed-JSON negative |
@@ -53,7 +59,7 @@ add them the same way once A3 cases land.
 |---|---|---|
 | API-CONFIRM-01 | A1 | Core activation happy path |
 | API-CONFIRM-02 | A1 | Confirm→verified unlocks sign-in; core state transition |
-| API-CONFIRM-09 | A1 | Exact status/shape 🔴 gate |
+| API-CONFIRM-09 | A1 | Exact status/shape |
 | API-CONFIRM-03 | A2 | Wrong-code negative |
 | API-CONFIRM-04 | A2 | Single-use enforcement; deterministic |
 | API-CONFIRM-05 | A2 | Malformed-code format set (data-driven) |
@@ -62,17 +68,18 @@ add them the same way once A3 cases land.
 | API-CONFIRM-10 | A2 | Re-issued-code positive |
 | API-CONFIRM-15 | A2 | Verified-guard defect; deterministic security regression |
 | API-CONFIRM-16 | A2 | Multiple-live-codes defect; deterministic |
-| API-CONFIRM-08 | A3 | `@db` — expiry reachable only via the DB seam |
+| API-CONFIRM-08 | A3 | `@db` — expiry reachable only via the DB seam — ✅ automated (`db` project) |
+| API-CONFIRM-08b | A3 | `@db` — injected/controlled expired code — ✅ automated (`db` project) |
 | API-CONFIRM-11 | A3 | `@security` — rapid brute-force loop; observational, low CI value |
-| API-CONFIRM-13 | A3 | `@db` — expiry boundary via seam |
-| API-CONFIRM-14 | A3 | `@db` seeding helper (fixture, not an assertion) |
+| API-CONFIRM-13 | A3 | `@db` — expiry boundary via seam — ✅ automated (`db` project) |
+| API-CONFIRM-14 | A3 | `@db` seeding helper (fixture, not an assertion) — ✅ automated (`db` project) |
 
 ## API — Auth: sign-in (`auth-signin.md`)
 | ID | Tier | Why this tier |
 |---|---|---|
 | API-SIGNIN-01 | A1 | Core auth happy path |
 | API-SIGNIN-02 | A1 | Wrong-password core negative |
-| API-SIGNIN-08 | A1 | Exact `{token}` 🔴 gate |
+| API-SIGNIN-08 | A1 | Exact `{token}` |
 | API-SIGNIN-03 | A2 | Unverified rejection; needs unverified seed |
 | API-SIGNIN-04 | A2 | No-enumeration security assertion |
 | API-SIGNIN-05 | A2 | Missing-credentials negative |
@@ -86,7 +93,7 @@ add them the same way once A3 cases land.
 |---|---|---|
 | API-ME-01 | A1 | Profile happy path |
 | API-ME-02 | A1 | No-token 401 — core auth boundary |
-| API-ME-06 | A1 | Strict `{id,email}` 🔴 gate |
+| API-ME-06 | A1 | Strict `{id,email}` |
 | API-ME-03 | A2 | Malformed-token negative |
 | API-ME-04 | A2 | Wrong-scheme negative |
 | API-ME-08 | A2 | Empty-Bearer negative |
@@ -99,8 +106,8 @@ add them the same way once A3 cases land.
 |---|---|---|
 | API-NOTE-01 | A1 | Create — core |
 | API-NOTE-02 | A1 | Read own — core |
-| API-NOTE-03 | A1 | Content round-trip 🔴 gate |
-| API-NOTE-04 | A1 | List includes note + content intact 🔴 gate |
+| API-NOTE-03 | A1 | Content round-trip |
+| API-NOTE-04 | A1 | List includes note + content intact |
 | API-NOTE-05 | A1 | Update — core |
 | API-NOTE-06 | A1 | Delete → 404 — core |
 | API-NOTE-07 | A2 | Create-many / list-all |
@@ -141,9 +148,10 @@ add them the same way once A3 cases land.
 | ID | Tier | Why this tier |
 |---|---|---|
 | API-PAGE-01, 02, 04…09 | A2 | Page-size/navigation/defaults/scope; small fixtures, deterministic |
-| API-PAGE-03 | A3 | Needs ≥51-note seed → `@db`/pool, too heavy for smoke |
-| API-SCALE-01…07 | A3 | `@scale @db` — large-dataset seeding + soft perf |
-| API-SEED-01 | A3 | `@db` bulk-seed helper (fixture) |
+| API-PAGE-03 | A3 | Needs ≥51-note seed → `@db`/pool, too heavy for smoke — ✅ automated (`db` project) |
+| API-SCALE-01, 02, 06, 07 | A3 | `@db` — large-dataset seeding + owner-scope/no-total assertions — ✅ automated (`db` project) |
+| API-SCALE-03, 04, 05 | A3 | `@db` — search/sort-at-scale + soft perf timing — not yet automated (belongs in `notes-search.spec.ts`) |
+| API-SEED-01 | A3 | `@db` bulk-seed helper (fixture) — ✅ automated (`db` project) |
 
 ## API — Validation (`notes-validation.md`)
 | ID | Tier | Why this tier |
@@ -153,8 +161,8 @@ add them the same way once A3 cases land.
 ## API — Contract / schema (`contract-schema.md`)
 | ID | Tier | Why this tier |
 |---|---|---|
-| API-CONTRACT-01…08 | **inline** | Not standalone tests — an `expectMatchesSchema` assertion added **inside the host case**, so each inherits its host's tier (e.g. API-CONTRACT-06 rides API-ME-06 → A1; API-CONTRACT-01 rides API-NOTE-01 → A1). No separate execution/suite slot |
-| API-DRIFT-01…04 | A2 | The only standalone contract items — spec-drift, run as known-fail (`xfail`) to track documentation defects |
+| API-CONTRACT-01…08 | A2 | Standalone tests in `contract.spec.ts`, tagged `@regression` — cheap, deterministic schema validation against the live spec; not release-gating enough to justify an A1 slot |
+| API-DRIFT-01…04 | A2 | Standalone in `contract-drift.spec.ts` — spec-drift, run as known-fail (`xfail`) to track documentation defects |
 
 ## UI — Registration / session (`registration-journey.md`)
 | ID | Tier | Why this tier |
@@ -175,7 +183,7 @@ add them the same way once A3 cases land.
 | UI-NOTE-04 | A2 | Cancel deletion |
 | UI-NOTE-05 | A2 | Live list/counter update |
 | UI-NOTE-06 | A2 | Invalid create surfaced |
-| UI-NOTE-07 | A2 | Content renders (UI broken-mode 🔴 catcher) |
+| UI-NOTE-07 | A2 | Content renders (UI broken-mode catcher) |
 | UI-NOTE-08 | A2 | XSS escaped in browser (UI-only security) |
 | UI-NOTE-09 | A3 | `@concurrency` — double-click create race; flaky, retry-tolerant |
 | UI-NOTE-10 | A2 | Edit-modal input-loss defect; deterministic |
@@ -209,7 +217,7 @@ add them the same way once A3 cases land.
 | **Extended (A3)** | ~30 | ~5–10 min | nightly / on-demand | `@db @infra @concurrency @slow @scale @security` |
 
 **Build order:** A1 (get CI green fast) → A2 (breadth) → A3 (seams/infra). The broken-mode gate suite is
-the 🔴-flagged subset of A1/A2 re-run against a `broken` instance.
+the exact-status/exact-shape subset of A1/A2 re-run against a `broken` instance.
 
 ## Runtime budgets & assumptions
 

@@ -15,12 +15,13 @@ who I am._
 | API-ME-03 | P1 | Negative | Malformed / garbage token | — | GET `Authorization: Bearer not.a.jwt` | `401`, `{code:401, message:"Invalid JWT Token"}` | auth-me.spec |
 | API-ME-04 | P2 | Negative | Wrong auth scheme | — | GET `Authorization: Basic dXNlcjpwYXNz` | `401` | auth-me.spec |
 | API-ME-05 | P2 | Negative | Expired token | Token past its `exp` _(time-dependent — manual or short-lived token)_ | GET with expired token | `401` (expired) | manual |
-| API-ME-06 | P2 | Contract | 🔴 gate — exact shape | Valid JWT | GET `/me` | Body keys **exactly** `id` + `email` (broken mode emits `user_id`/`mail`/`profile`) | auth-me.spec |
+| API-ME-06 | P2 | Contract | Exact shape | Valid JWT | GET `/me` | Body keys **exactly** `id` + `email` (broken mode emits `user_id`/`mail`/`profile`) | auth-me.spec |
 | API-ME-07 | P2 | Security | Token of deleted user | User deleted after issuing token _(if deletion available)_ | GET with old token | `401` / access denied | manual |
 | API-ME-08 | P3 | Negative | Empty Bearer value | — | GET `Authorization: Bearer ` | `401` | auth-me.spec |
 | API-ME-09 | P2 | Security | 🐞 Token still valid after logout | Signed in; JWT captured | Log out (client clears `localStorage`), then GET `/me` with the captured token | **Defect (verified):** `200 {id,email}` — logout is client-side only, no server-side revocation; token works for its full ~60-min TTL. *Expected:* revoked token → `401` | auth-me.spec |
 
 **Notes:** `id` should be a UUID v4 and `email` the normalized (lower-cased) address.
 
-**Built-in schema check:** the `/me` body is *additionally* validated strictly against `{id,email}`
-inline (this is the API-CONTRACT-06 broken-mode gate) — see [contract-schema.md](contract-schema.md).
+**Schema check:** the `/me` body is *additionally* validated strictly against `{id,email}` in the
+dedicated contract spec (this is the API-CONTRACT-06 broken-mode gate) — see
+[contract-schema.md](contract-schema.md) and `tests/api/contract.spec.ts`.
