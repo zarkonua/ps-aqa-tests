@@ -22,7 +22,8 @@ success `201 {message:"Confirmation code sent to email."}` · sends email to Mai
 | Missing domain | invalid | `user@` | 400 `Invalid email format.` |
 | Missing local part | invalid | `@example.com` | 400 `Invalid email format.` |
 | Empty | invalid | `` | 400 `Email is required.` |
-| > 190 chars | invalid | `aaaa…@example.com` (191) | 400 `Email is too long.` |
+| 190 chars | boundary (max) | `emailOfLength(190)` | 201 |
+| 191 chars | invalid (above max) | `emailOfLength(191)` | 400 `Email is too long.` |
 
 **Password (length boundaries)**
 
@@ -39,7 +40,7 @@ success `201 {message:"Confirmation code sent to email."}` · sends email to Mai
 | ID | Pri | Type | Title | Preconditions | Steps / Data | Expected result | Coverage |
 |---|---|---|---|---|---|---|---|
 | API-SIGNUP-01 | P0 | Positive | Register a brand-new user | Email not registered | POST `{email:<unique>, password:"Password123!"}` | `201`, body exactly `{message:"Confirmation code sent to email."}` | auth-signup.spec |
-| API-SIGNUP-02 | P0 | Positive | 🔴 gate — confirmation email & link | — | After signup, query MailHog for recipient | Email present; contains a 6-digit code and a link whose **host is the app** (`…/app?confirm_email=<email>&confirm_code=<6 digits>`). Broken mode points the link at a bogus host — caught here | auth-signup.spec |
+| API-SIGNUP-02 | P0 | Positive | Confirmation email & link | — | After signup, query MailHog for recipient | Email present; contains a 6-digit code and a link whose **host is the app** (`…/app?confirm_email=<email>&confirm_code=<6 digits>`). Broken mode points the link at a bogus host — caught here | auth-signup.spec |
 | API-SIGNUP-03 | P1 | Positive | Email is normalized | — | Signup with `  MiXed@Example.COM ` then confirm/sign in using `mixed@example.com` | Account usable via normalized email | auth-signup.spec |
 | API-SIGNUP-04 | P1 | Negative | Duplicate verified user rejected | User already registered **and** confirmed | POST same email | `400`, `{error:"User already exists."}` | auth-signup.spec |
 | API-SIGNUP-05 | P2 | Positive | Re-signup for unverified user allowed | User signed up but **not** confirmed | POST same email again | `201`; a fresh code is issued | auth-signup.spec |
@@ -48,9 +49,11 @@ success `201 {message:"Confirmation code sent to email."}` · sends email to Mai
 | API-SIGNUP-08 | P1 | Negative | Invalid email format | — | POST each invalid email from EC table | `400`, `{error:"Invalid email format."}` | auth-signup.spec |
 | API-SIGNUP-09 | P1 | Boundary | Password below minimum | — | POST password = 7 chars | `400`, `{error:"Password must be at least 8 characters."}` | auth-signup.spec |
 | API-SIGNUP-10 | P1 | Boundary | Password at minimum | — | POST password = 8 chars | `201` | auth-signup.spec |
-| API-SIGNUP-11 | P2 | Boundary | Password at/above maximum | — | 255 chars → `201`; 256 chars → `400 "Password is too long."` | as expected | auth-signup.spec |
-| API-SIGNUP-12 | P2 | Boundary | Email length limit | — | local part making email 191 chars | `400`, `{error:"Email is too long."}` | auth-signup.spec |
-| API-SIGNUP-13 | P2 | Contract | 🔴 gate — exact status & shape | — | Valid signup | Status is **exactly `201`**; body is **exactly** `{message:"Confirmation code sent to email."}` (no extra keys) | auth-signup.spec |
+| API-SIGNUP-11a | P2 | Boundary | Password at maximum (255) accepted | — | POST password = 255 chars | `201` | auth-signup.spec |
+| API-SIGNUP-11b | P2 | Boundary | Password over maximum (256) rejected | — | POST password = 256 chars | `400`, `{error:"Password is too long."}` | auth-signup.spec |
+| API-SIGNUP-12a | P2 | Boundary | Email at maximum (190) accepted | — | POST email = exactly 190 chars | `201` | auth-signup.spec |
+| API-SIGNUP-12b | P2 | Boundary | Email over maximum (191) rejected | — | POST email = exactly 191 chars | `400`, `{error:"Email is too long."}` | auth-signup.spec |
+| API-SIGNUP-13 | P2 | Contract | Exact status & shape | — | Valid signup | Status is **exactly `201`**; body is **exactly** `{message:"Confirmation code sent to email."}` (no extra keys) | auth-signup.spec |
 | API-SIGNUP-14 | P3 | Negative | Empty JSON body | — | POST `{}` | `400`, `{error:"Email is required."}` | auth-signup.spec |
 | API-SIGNUP-15 | P2 | Security | Injection in email field | — | POST `email:"'; DROP TABLE users;--@x"` | `400 Invalid email format.`; no server error, DB intact | auth-signup.spec |
 | API-SIGNUP-16 | P3 | Negative | Malformed JSON payload | — | POST body `not-json` with JSON content-type | `400`, `{error:"Invalid JSON payload."}`, no stack trace leaked | auth-signup.spec |
