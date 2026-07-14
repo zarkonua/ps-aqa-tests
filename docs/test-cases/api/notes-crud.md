@@ -20,7 +20,7 @@ returns `204`; the note is then gone.
 | API-NOTE-07 | P1 | Positive | Create multiple, list all | Authed user | Create 3 notes, GET list | All 3 present, no duplicates | notes-crud.spec |
 | API-NOTE-08 | P1 | Positive | PUT idempotency | Note created | PUT same body twice | Both `200`; resulting resource identical (aside from `updated_at`) | notes-crud.spec |
 | API-NOTE-09 | P2 | Contract | Field formats | Note created | Inspect response | `id` = UUID v4; `created_at`/`updated_at` = ISO-8601 with offset | notes-crud.spec |
-| API-NOTE-10 | P2 | Negative | 🐞 `created_at` is reset on update (not immutable) | Note created | Update note, compare timestamps | **Defect (verified, [G14](../../requirements-gap-analysis.md)):** `PUT` re-fires `prePersist` and rewrites `created_at` to the update time. *Expected:* `created_at` unchanged; `updated_at` advanced | notes-crud.spec |
+| API-NOTE-10 | P2 | Negative | 🐞 `created_at` is reset on update (not immutable) | Note created | Update note, compare timestamps | **Defect (verified, G14):** `PUT` re-fires `prePersist` and rewrites `created_at` to the update time. *Expected:* `created_at` unchanged; `updated_at` advanced | notes-crud.spec |
 | API-NOTE-11 | P2 | Security | Cannot spoof owner via payload | Two users A, B | A POST `{title, content, owner:"/api/users/<B>"}` | Note owned by **A** (extra field ignored); not assigned to B | notes-crud.spec |
 | API-NOTE-12 | P2 | Positive | Unknown fields ignored | Authed user | POST `{title, content, foo:"bar"}` | `201`; `foo` not stored/returned | notes-crud.spec |
 | API-NOTE-13 | P3 | Positive | Unicode/emoji content | Authed user | Create note with `título 📝 内容` | Stored and returned byte-for-byte | notes-crud.spec |
@@ -29,8 +29,8 @@ returns `204`; the note is then gone.
 | API-NOTE-16 | P1 | Security | 🐞 Lost update — no optimistic concurrency | A note exists | Two clients each read the note, then `PUT` different values in sequence | **Defect (verified):** both `PUT` → `200`; the later write silently **overwrites** the earlier with no version/`ETag`/`If-Match` check — classic lost update. *Expected:* a concurrency guard (`updated_at`/version) → `409 Conflict` on a stale write | notes-crud.spec |
 
 **Schema check:** the create/read/update/list response shapes are *additionally* validated against
-`Note-note.read` (strict) in the dedicated contract spec — see
-[contract-schema.md](contract-schema.md) (API-CONTRACT-01…04, 07) and `tests/api/contract.spec.ts`.
+`Note-note.read` (strict) in the dedicated contract spec (API-CONTRACT-01…04, 07) — see
+`tests/api/contract.spec.ts`.
 
 See [notes-validation.md](notes-validation.md) for field-constraint cases and
 [notes-authorization.md](notes-authorization.md) for ownership/auth.

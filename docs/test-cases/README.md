@@ -6,13 +6,9 @@ product's user stories (README of the app) and the observed API contract. These 
 lives under [`../../tests`](../../tests); the mapping is in each file's _Coverage_ column.
 
 > Companion docs: [`../test-strategy.md`](../test-strategy.md) (strategy, requirements, "broken mode" design, DoD) ·
-> [`../coverage-matrix.md`](../coverage-matrix.md) (feature → test mapping) ·
-> [`../automation-priority.md`](../automation-priority.md) (per-case automation tier + runtime budgets) ·
-> [`../requirements-gap-analysis.md`](../requirements-gap-analysis.md) (ambiguous/missing requirements vs implementation) ·
-> [`../a1-automation-report.md`](../a1-automation-report.md) / [`../a2-automation-report.md`](../a2-automation-report.md) (automation evidence) ·
-> [`../supporting/coverage-gap-analysis.md`](../supporting/coverage-gap-analysis.md) (source-driven branch/risk gaps) ·
-> [`../supporting/test-design-techniques.md`](../supporting/test-design-techniques.md) (per-case design techniques) ·
-> [`../exploratory/`](../exploratory) (exploratory charter sessions).
+> [`../test-plan.md`](../test-plan.md) (scope, entry/exit criteria) ·
+> [`../qa-process.md`](../qa-process.md) (gates, defect workflow) ·
+> [`../automation-priority.md`](../automation-priority.md) (per-case automation tier + runtime budgets).
 
 ## How this is organized
 
@@ -33,8 +29,6 @@ test-cases/
 | **API** — Search / filter / sort | [api/notes-search-sort.md](api/notes-search-sort.md) |
 | **API** — Pagination | [api/notes-pagination.md](api/notes-pagination.md) |
 | **API** — Notes validation | [api/notes-validation.md](api/notes-validation.md) |
-| **API** — Contract & schema (OpenAPI) | [api/contract-schema.md](api/contract-schema.md) |
-| **API** — Advanced / gray-box | [api/advanced-gray-box.md](api/advanced-gray-box.md) |
 | **UI** — Registration journey | [ui/registration-journey.md](ui/registration-journey.md) |
 | **UI** — Notes management | [ui/notes-management.md](ui/notes-management.md) |
 | **UI** — Search & pagination | [ui/search-pagination.md](ui/search-pagination.md) |
@@ -48,12 +42,12 @@ test-cases/
 **Type** — `Positive` · `Negative` · `Boundary` · `Security` · `Contract` (response shape/status).
 
 **Tags** — `@smoke` (fast subset) · `@db @gray-box` (needs the DB seam; skipped when `DB_HOST`
-is unset — see [api/advanced-gray-box.md](api/advanced-gray-box.md)) · `@slow` (excluded from PR runs) ·
+is unset) · `@slow` (excluded from PR runs) ·
 `@infra` `@concurrency` `@security` `@scale`.
 
 **Automation tier** — every case is assigned **A1** (smoke) / **A2** (regression) / **A3** (extended) /
 **M** (exploratory) in [`../automation-priority.md`](../automation-priority.md). A `🐞` in a case marks a
-**confirmed defect** the case documents (see [`../exploratory/`](../exploratory) for the sessions that found them).
+**confirmed defect** the case documents.
 
 **Priority** (risk-based, per business impact × failure likelihood):
 

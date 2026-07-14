@@ -24,4 +24,4 @@ who I am._
 
 **Schema check:** the `/me` body is *additionally* validated strictly against `{id,email}` in the
 dedicated contract spec (this is the API-CONTRACT-06 broken-mode gate) — see
-[contract-schema.md](contract-schema.md) and `tests/api/contract.spec.ts`.
+`tests/api/contract.spec.ts`.

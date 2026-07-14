@@ -56,7 +56,7 @@ returned page.
 A `seedNotes(notesApi, count, build, concurrency = 20)` helper (bounded worker pool, reusing one
 authenticated context) covers the API path. **Caveat:** concurrent creation makes `created_at`
 order non-deterministic — for `sort[updatedAt]` assertions seed sequentially or set timestamps via
-the DB seam ([advanced-gray-box.md](advanced-gray-box.md)); title-based sort is unaffected. Going
+the DB seam; title-based sort is unaffected. Going
 much wider than ~20 workers slows down (single Dockerized MySQL).
 
 | ID | Pri | Type | Title | Preconditions | Steps | Expected result | Coverage |

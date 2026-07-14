@@ -49,4 +49,4 @@ violations → **`422 application/problem+json`**:
 
 **Schema check:** the `422` envelope shape is *additionally* validated against the
 `ConstraintViolation`/`Error` schema in the dedicated contract spec (API-CONTRACT-05) — see
-[contract-schema.md](contract-schema.md) and `tests/api/contract.spec.ts`.
+`tests/api/contract.spec.ts`.
