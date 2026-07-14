@@ -6,7 +6,6 @@ node_modules/
 /allure-report/
 /playwright/.cache/
 /playwright/.auth/
-.env
 *.log
 dist/
 .idea/
